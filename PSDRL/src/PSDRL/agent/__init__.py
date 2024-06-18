@@ -1,4 +1,4 @@
-from .psdrl import PSDRL
+from .psdrl import NeuralLinearPSDRL, EnsemblePSDRL
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,10 +9,17 @@ def Agent(
     config: dict,
     actions: list,
     logger: "Logger",
-    env_dim : int,
+    env_dim: int,
     seed: int = None,
 ):
-    agent = PSDRL
+    algorithm = config["algorithm"]["name"]
+    if algorithm == "PSDRL":
+        agent = NeuralLinearPSDRL
+    elif algorithm == "Ensemble":
+        agent = EnsemblePSDRL
+    else:
+        raise ValueError(f"algorithm {algorithm} is not supported")
+
     return agent(
         config,
         actions,

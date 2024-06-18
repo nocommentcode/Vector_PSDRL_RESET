@@ -182,7 +182,7 @@ class NeuralLinearModel:
 
         return linear_representations, targets
 
-    def update_posteriors(self, dataset: Dataset):
+    def update(self, dataset: Dataset):
         """
         Compute feature maps for all states in the replay buffer, then update posteriors with Bayesian Linear
         Regression. Cholesky decomposition for computing the inverse is used with additional checks to ensure
@@ -212,6 +212,8 @@ class NeuralLinearModel:
 
         for i in range(self.state_size + 1):
             self.mu[i] = (self.noise_variance * Phi).matmul(x.T.matmul(y[:, i]))
+
+        self.sample()
 
     def sample(self):
         self.randsamp[:] = torch.randn(self.N, *self.mu.shape)

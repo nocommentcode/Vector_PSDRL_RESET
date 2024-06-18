@@ -1,0 +1,60 @@
+import torch
+from torch import nn
+
+from ..common.settings import REC_CELL, TM_LOSS_F, TM_OPTIM
+from .ensemble_linear import EnsembleLinearLayer
+
+
+class EnsembleTransitionModel(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        n_actions: int,
+        config: dict,
+        device: str,
+        ensemble_size: int,
+    ):
+        super().__init__()
+
+        self.gru_dim = config["gru_dim"]
+        self.latent_dim = self.gru_dim + config["hidden_dim"]
+        self.ensemble_size = ensemble_size
+
+        self.layers = nn.Sequential(
+            EnsembleLinearLayer(
+                self.gru_dim + embed_dim + n_actions,
+                self.latent_dim,
+                ensemble_size,
+                device,
+            ),
+            nn.Tanh(),
+            EnsembleLinearLayer(
+                self.latent_dim, self.latent_dim, ensemble_size, device=device
+            ),
+            nn.Tanh(),
+            EnsembleLinearLayer(
+                self.latent_dim, self.latent_dim, ensemble_size, device=device
+            ),
+            nn.Tanh(),
+            EnsembleLinearLayer(
+                self.latent_dim, self.latent_dim, ensemble_size, device=device
+            ),
+            nn.Tanh(),
+            EnsembleLinearLayer(
+                self.latent_dim, embed_dim + 1, ensemble_size, device=device
+            ),
+        )
+        self._cell = REC_CELL(embed_dim + n_actions, self.gru_dim)
+        self.loss_function = TM_LOSS_F
+        self.optimizer = TM_OPTIM(self.parameters(), lr=config["learning_rate"])
+        self.to(device)
+        self.loss = 0
+
+    def forward(self, x: torch.tensor, hidden: torch.tensor):
+        h = self._cell(x, hidden)
+        return self.layers(torch.cat((h, x), dim=1)), h
+
+    def predict(self, x: torch.tensor, hidden: torch.tensor):
+        with torch.no_grad():
+            y, h = self.forward(x, hidden)
+            return y, h

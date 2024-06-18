@@ -1,6 +1,10 @@
 import torch
 import numpy as np
 
+from ..bayes.ensemble_model import EnsembleModel
+
+from ..ensemble.ensemble_transition_model import EnsembleTransitionModel
+
 from ..common.logger import Logger
 from ..common.replay import Dataset
 from ..common.utils import preprocess_image
@@ -52,12 +56,7 @@ class PSDRL:
             else None
         )
         terminal_network = TerminalNetwork(env_dim, config["terminal"], self.device)
-        transition_network = TransitionNetwork(
-            env_dim,
-            self.num_actions,
-            config["transition"],
-            self.device,
-        )
+
         self.value_network = ValueNetwork(
             env_dim,
             config["value"],
@@ -65,14 +64,10 @@ class PSDRL:
             config["transition"]["gru_dim"],
         )
 
-        self.model = NeuralLinearModel(
-            config["algorithm"],
-            env_dim,
-            actions,
-            transition_network,
-            terminal_network,
-            self.autoencoder,
-            self.device,
+        transition_network = self.build_transition_model(env_dim, config)
+
+        self.model = self.build_model(
+            env_dim, config, actions, transition_network, terminal_network
         )
 
         self.representation_trainer = (
@@ -99,6 +94,14 @@ class PSDRL:
             config["replay"]["batch_size"],
             self.actions,
         )
+
+    def build_transition_model(self, env_dim, config):
+        raise NotImplementedError("build transition model not implemented")
+
+    def build_model(
+        self, env_dim, config, actions, transition_network, terminal_network
+    ):
+        raise NotImplementedError("build model not implemented")
 
     def select_action(self, obs: np.array, step: int):
         """
@@ -162,6 +165,60 @@ class PSDRL:
             if self.representation_trainer:
                 self.representation_trainer.train_(self.dataset)
             self.transition_trainer.train_(self.dataset)
-            self.model.update_posteriors(self.dataset)
-            self.model.sample()
+            self.model.update(self.dataset)
             self.policy_trainer.train_(self.model, self.dataset)
+
+
+class NeuralLinearPSDRL(PSDRL):
+    def build_transition_model(self, env_dim, config):
+        transition_network = TransitionNetwork(
+            env_dim,
+            self.num_actions,
+            config["transition"],
+            self.device,
+        )
+
+        return transition_network
+
+    def build_model(
+        self, env_dim, config, actions, transition_network, terminal_network
+    ):
+        model = NeuralLinearModel(
+            config["algorithm"],
+            env_dim,
+            actions,
+            transition_network,
+            terminal_network,
+            self.autoencoder,
+            self.device,
+        )
+
+        return model
+
+
+class EnsemblePSDRL(PSDRL):
+    def build_transition_model(self, env_dim, config):
+        transition_network = EnsembleTransitionModel(
+            env_dim,
+            self.num_actions,
+            config["transition"],
+            self.device,
+            config["algorithm"]["ensemble_size"],
+        )
+
+        return transition_network
+
+    def build_model(
+        self, env_dim, config, actions, transition_network, terminal_network
+    ):
+        model = EnsembleModel(
+            config["algorithm"],
+            env_dim,
+            actions,
+            transition_network,
+            terminal_network,
+            self.autoencoder,
+            self.device,
+        )
+
+        return model
