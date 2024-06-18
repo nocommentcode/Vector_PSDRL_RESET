@@ -1,6 +1,6 @@
 import os
 import argparse
-
+import wandb
 import numpy as np
 import torch
 from ruamel.yaml import YAML
@@ -184,22 +184,7 @@ def main(config: dict):
     )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config", type=str, default="./configs/config_psdrl_vector.yaml"
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        default="3",
-        help="Currently if you put an integer it makes DeepSea with the size of that integer.",
-    )
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--experiment_name", type=str, default="")
-
-    args = parser.parse_args()
-
+def run_on_seed(config):
     with open(args.config, "r") as f:
         yaml = YAML(typ="rt")
         config = yaml.load(f)
@@ -211,3 +196,25 @@ if __name__ == "__main__":
             config["replay"]["sequence_length"] = int(args.env)
 
     main(config)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config", type=str, default="./configs/config_psdrl_vector.yaml"
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        default="3",
+        help="Currently if you put an integer it makes DeepSea with the size of that integer.",
+    )
+    parser.add_argument("--seed", type=int, nargs="+", default=None)
+    parser.add_argument("--experiment_name", type=str, default="")
+
+    args = parser.parse_args()
+    envs = args.env
+    for seed in args.seed:
+        args.seed = seed
+        run_on_seed(args)
+        wandb.finish()
