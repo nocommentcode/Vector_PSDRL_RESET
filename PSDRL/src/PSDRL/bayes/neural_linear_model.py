@@ -72,13 +72,17 @@ class NeuralLinearModel:
                 x, self.actions, h, self.num_actions, self.device
             )
 
-        feature_map, h = self.transition_network.get_feature_maps(x, h)
+        feature_map, h1 = self.transition_network.get_feature_maps(x, h)
         matmul = self.model_samples.matmul(feature_map.T)
         prediction = matmul.squeeze().T
         states, rewards = prediction[:, :-1], prediction[:, -1]
+
         # terminals = self.terminal_network.predict(states)
-        _, _, terminals, _ = self.predict_nn(x, h, uncertainty=False)
-        return states, rewards.reshape(-1, 1), terminals, h
+        # predict terminals from nn instead
+        nn_pred, _ = self.transition_network.predict(x, h)
+        terminals = self.terminal_network.predict(nn_pred[:, :-1])
+
+        return states, rewards.reshape(-1, 1), terminals, h1
 
     def predict_nn(self, states: torch.tensor, h: torch.tensor, uncertainty=False):
         """
