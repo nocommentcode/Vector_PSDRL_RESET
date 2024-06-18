@@ -70,6 +70,16 @@ def log_correct_path(env: gym.Env, agent):
             print(act, pred)
 
 
+def early_stop(dataset) -> bool:
+    n_episodes = 20
+    last_n_episodes = dataset.episodes[-n_episodes:]
+
+    episode_returns = [ep["cum_rew"] for ep in last_n_episodes]
+    av_return = sum(episode_returns) / n_episodes
+
+    return av_return >= 0.98
+
+
 def run_experiment(
     env: gym.Env,
     agent: Agent,
@@ -132,6 +142,9 @@ def run_experiment(
         logger.log_episode(
             experiment_step, train_reward=episode_reward, test_reward=np.nan
         )
+
+        if early_stop(agent.dataset):
+            break
 
 
 def main(config: dict):
