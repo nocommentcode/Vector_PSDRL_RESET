@@ -12,14 +12,14 @@ from ..common.settings import BATCH_EMBEDDING_SIZE, BLR_COEFFICIENT, ONE_OVER_LA
 
 class NeuralLinearModel:
     def __init__(
-            self,
-            config: dict,
-            state_size: int,
-            actions: torch.tensor,
-            transition_network: torch.nn.Module,
-            terminal_network: torch.nn.Module,
-            autoencoder: torch.nn.Module,
-            device: str,
+        self,
+        config: dict,
+        state_size: int,
+        actions: torch.tensor,
+        transition_network: torch.nn.Module,
+        terminal_network: torch.nn.Module,
+        autoencoder: torch.nn.Module,
+        device: str,
     ):
         self.device = device
         self.transition_network = transition_network
@@ -58,31 +58,27 @@ class NeuralLinearModel:
         # Random sampling from the prior
         self.sample()
 
-
-
     def predict(
-            self,
-            x: torch.tensor,
-            h: torch.tensor,
-            batch: bool,
+        self,
+        x: torch.tensor,
+        h: torch.tensor,
+        batch: bool,
     ):
         """
         Simulate one timestep using the current sampled model(s).
         """
-   #     states_nn, _, _, _ = self.predict_nn(x, h, uncertainty=False)
         if batch:
             x, h = create_state_action_batch(
                 x, self.actions, h, self.num_actions, self.device
             )
-        
+
         feature_map, h = self.transition_network.get_feature_maps(x, h)
         matmul = self.model_samples.matmul(feature_map.T)
         prediction = matmul.squeeze().T
         states, rewards = prediction[:, :-1], prediction[:, -1]
-        terminals = self.terminal_network.predict(states)
+        # terminals = self.terminal_network.predict(states)
+        _, _, terminals, _ = self.predict_nn(x, h, uncertainty=False)
         return states, rewards.reshape(-1, 1), terminals, h
-
-
 
     def predict_nn(self, states: torch.tensor, h: torch.tensor, uncertainty=False):
         """
@@ -95,7 +91,6 @@ class NeuralLinearModel:
         states, rewards = prediction[:, :-1], prediction[:, -1]
         terminals = self.terminal_network.predict(states)
         return states, rewards.reshape(-1, 1), terminals, h1
-
 
     def encode_replay_buffer(self, dataset: Dataset):
         """
@@ -128,15 +123,15 @@ class NeuralLinearModel:
             )
             if self.autoencoder:
                 for i in range(embed_iterations):
-                    s[
-                    i * embed_idx: i * embed_idx + BATCH_EMBEDDING_SIZE
-                    ] = self.autoencoder.embed(
-                        o[i * embed_idx: i * embed_idx + BATCH_EMBEDDING_SIZE]
+                    s[i * embed_idx : i * embed_idx + BATCH_EMBEDDING_SIZE] = (
+                        self.autoencoder.embed(
+                            o[i * embed_idx : i * embed_idx + BATCH_EMBEDDING_SIZE]
+                        )
                     )
-                    s1[
-                    i * embed_idx: i * embed_idx + BATCH_EMBEDDING_SIZE
-                    ] = self.autoencoder.embed(
-                        o1[i * embed_idx: i * embed_idx + BATCH_EMBEDDING_SIZE]
+                    s1[i * embed_idx : i * embed_idx + BATCH_EMBEDDING_SIZE] = (
+                        self.autoencoder.embed(
+                            o1[i * embed_idx : i * embed_idx + BATCH_EMBEDDING_SIZE]
+                        )
                     )
             else:
                 s = ep["states"]
@@ -174,8 +169,8 @@ class NeuralLinearModel:
             prediction, h[unfinished_idx] = self.transition_network.get_feature_maps(
                 s_a[unfinished_idx, idx], h[unfinished_idx]
             )
-            linear_representations[add_idx: add_idx + len(prediction)] = prediction
-            targets[add_idx: add_idx + len(prediction)] = y[unfinished_idx, idx]
+            linear_representations[add_idx : add_idx + len(prediction)] = prediction
+            targets[add_idx : add_idx + len(prediction)] = y[unfinished_idx, idx]
             add_idx = add_idx + len(prediction)
 
             finished = torch.cat((finished, torch.where(t[:, idx] == 1)[0]))
@@ -217,8 +212,8 @@ class NeuralLinearModel:
     def sample(self):
         self.randsamp[:] = torch.randn(self.N, *self.mu.shape)
         self.model_samples[:, :-1, :] = self.mu[:-1] + (
-                self.randsamp[:, :-1, :] @ self.transition_cov
+            self.randsamp[:, :-1, :] @ self.transition_cov
         )
         self.model_samples[:, -1, :] = self.mu[-1] + (
-                self.randsamp[:, -1, :] @ self.reward_cov
+            self.randsamp[:, -1, :] @ self.reward_cov
         )
