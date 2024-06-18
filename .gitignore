@@ -1,0 +1,3 @@
+PSDRL/src/logdir/*
+PSDRL/src/wandb/*
+**.pyc
