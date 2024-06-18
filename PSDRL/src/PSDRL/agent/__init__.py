@@ -1,4 +1,4 @@
-from .psdrl import NeuralLinearPSDRL, EnsemblePSDRL
+from .psdrl import NeuralLinearPSDRL, EnsemblePSDRL, ShallowEnsemblePSDRL
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ def Agent(
         agent = NeuralLinearPSDRL
     elif algorithm == "Ensemble":
         agent = EnsemblePSDRL
+    elif algorithm == "ShallowEnsemble":
+        agent = ShallowEnsemblePSDRL
     else:
         raise ValueError(f"algorithm {algorithm} is not supported")
 

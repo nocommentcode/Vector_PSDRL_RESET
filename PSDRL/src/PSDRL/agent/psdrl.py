@@ -219,6 +219,25 @@ class EnsemblePSDRL(PSDRL):
             terminal_network,
             self.autoencoder,
             self.device,
+            shallow_exploration=False,
+        )
+
+        return model
+
+
+class ShallowEnsemblePSDRL(EnsemblePSDRL):
+    def build_model(
+        self, env_dim, config, actions, transition_network, terminal_network
+    ):
+        model = EnsembleModel(
+            config["algorithm"],
+            env_dim,
+            actions,
+            transition_network,
+            terminal_network,
+            self.autoencoder,
+            self.device,
+            shallow_exploration=True,
         )
 
         return model

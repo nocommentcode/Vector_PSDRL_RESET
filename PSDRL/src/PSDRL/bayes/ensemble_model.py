@@ -15,6 +15,7 @@ class EnsembleModel:
         terminal_network: torch.nn.Module,
         autoencoder: torch.nn.Module,
         device: str,
+        shallow_exploration: bool = False,
     ):
         self.device = device
         self.transition_network = transition_network
@@ -26,6 +27,7 @@ class EnsembleModel:
         self.prev_state = torch.zeros(self.transition_network.gru_dim).to(self.device)
 
         self.ensemble_size = config["ensemble_size"]
+        self.shallow_exploration = shallow_exploration
 
         # Random sampling from the prior
         self.sample()
@@ -54,6 +56,10 @@ class EnsembleModel:
         def sample_ensemble(pred):
             pred = pred.view((self.ensemble_size, -1, *pred.shape[1:]))
             return pred[self.sampled_index]
+
+        # resample for each time step if performing shallow exploration
+        if self.shallow_exploration:
+            self.sample()
 
         # sample ensemble currently sampled
         prediction = sample_ensemble(prediction)
