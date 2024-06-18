@@ -30,11 +30,12 @@ class EnsembleLinearLayer(nn.Module):
         self.to(device)
 
     def reset_parameters(self):
+        torch.nn.init.kaiming_uniform_(self.weight, nonlinearity="tanh")
+
         if self.bias is not 0:
             fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
             bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             torch.nn.init.uniform_(self.bias, -bound, bound)
-        torch.nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
         """
