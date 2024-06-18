@@ -1,7 +1,8 @@
-gym[atari]==0.18.3
+gym[atari]
 Pillow
 ruamel.yaml
 scikit_image
 torch
 bsuite
 gymnasium
+wandb
