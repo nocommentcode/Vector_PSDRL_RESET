@@ -6,9 +6,7 @@ PROJECT = "qmul_research/VectorPSDRLNew"
 N_EPISODES = 20
 THRESHOLD = 0.98
 
-ALGORITHMS = [
-    "PSDRL",
-]
+ALGORITHMS = ["PSDRL", "Ensemble", "ShallowEnsemble"]
 
 
 def set_solved_at_episode(env, algorithm):
