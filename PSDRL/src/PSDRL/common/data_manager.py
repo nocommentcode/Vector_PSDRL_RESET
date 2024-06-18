@@ -26,7 +26,7 @@ class DataManager:
             json.dump(config, f, indent=2)
         wandb.init(
             project="VectorPSDRLNew",
-            name=config["algorithm"]["name"],
+            name=f"{config['algorithm']['name']}-{config['experiment']['env']}({config['experiment']['seed']})",
             config=config,
             tags=[config["experiment"]["env"], config["algorithm"]["name"]],
         )
