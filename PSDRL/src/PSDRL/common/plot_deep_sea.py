@@ -20,6 +20,14 @@ def plot_origin_state(state, ax):
     )
 
 
+def reset_env_to(env, prev_actions):
+    obs, reward, done = env.reset(), 0, False
+    for a in prev_actions:
+        obs, reward, done, _ = env.step(a)
+
+    return obs, reward, done
+
+
 def plot_state(
     axis,
     actual_state,
@@ -61,13 +69,7 @@ def simulate_action_and_plot(
     pred_value,
     axis,
 ):
-    # reset env to current state
-    env.reset()
-    for a in prev_actions:
-        env.step(a)
-
-    # take action
-    obs, reward, done, _ = env.step(action)
+    obs, reward, done = reset_env_to(env, [*prev_actions, action])
 
     pred_state = pred_state.detach().cpu().numpy().reshape((env._size, env._size))
     pred_rew = pred_rew.detach().cpu().numpy()[0]
@@ -104,9 +106,7 @@ def plot_frame(
         return a == env._action_mapping[row, col]
 
     # get current obs
-    current_obs = env.reset()
-    for a in prev_actions:
-        current_obs, *_ = env.step(a)
+    current_obs, *_ = reset_env_to(env, prev_actions)
 
     # plot starting obs on top
     ax = plt.subplot(2, 1, 1)
@@ -168,11 +168,12 @@ def simulate_trajectory(env: gym.Env, agent):
         return obs
 
     agent.model.prev_state[:] = torch.zeros(agent.model.transition_network.gru_dim)
-    obs = env.reset()
     taken_actions = []
     frames = []
     for time in range(env._size):
         # get model predictions
+        obs, *_ = reset_env_to(env, taken_actions)
+
         obs = process_obs(obs)
         states, rewards, terminals, h = agent.model.predict(
             obs, agent.model.prev_state, batch=True
@@ -199,7 +200,6 @@ def simulate_trajectory(env: gym.Env, agent):
         frames.append(frame)
 
         taken_actions.append(selected_action)
-        obs, *_ = env.step(selected_action)
         agent.model.prev_state = h[selected_action]
 
     return compile_frames(frames)
