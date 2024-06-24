@@ -10,6 +10,7 @@ from PSDRL.common.data_manager import DataManager
 from PSDRL.common.utils import init_env, load, preprocess_image
 from PSDRL.common.logger import Logger
 from PSDRL.agent import Agent
+from PSDRL.common.plot_deep_sea import log_trajectories
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -135,8 +136,9 @@ def run_experiment(
         print(
             f"Episode {ep}, Timestep {experiment_step}, Train Reward {episode_reward}"
         )
-        if ep % 10 == 0:
-            log_correct_path(env, agent)
+        if ep % 50 == 0:
+            # log_correct_path(env, agent)
+            log_trajectories(env, agent, 10, logger, experiment_step)
 
         ep += 1
         logger.log_episode(
