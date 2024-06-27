@@ -10,7 +10,11 @@ from PSDRL.common.data_manager import DataManager
 from PSDRL.common.utils import init_env, load, preprocess_image
 from PSDRL.common.logger import Logger
 from PSDRL.agent import Agent
-from PSDRL.common.plot_deep_sea import log_trajectories
+from PSDRL.common.plot_deep_sea import (
+    log_deep_shallow_expl,
+    log_shallow_effect,
+    log_trajectories,
+)
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -116,6 +120,10 @@ def run_experiment(
             action = agent.select_action(current_observation, episode_step)
             observation, reward, done, _ = env.step(action)
             done = done or episode_step == time_limit
+
+            if done and reward >= 0.99:
+                log_shallow_effect(env, agent, logger, experiment_step)
+
             agent.update(
                 current_observation,
                 action,
@@ -136,14 +144,17 @@ def run_experiment(
         print(
             f"Episode {ep}, Timestep {experiment_step}, Train Reward {episode_reward}"
         )
-        if ep % 50 == 0:
-            # log_correct_path(env, agent)
-            log_trajectories(env, agent, 10, logger, experiment_step)
+
+        # log_correct_path(env, agent)
+        # log_trajectories(env, agent, 10, logger, experiment_step)
 
         ep += 1
         logger.log_episode(
             experiment_step, train_reward=episode_reward, test_reward=np.nan
         )
+
+        if ep % 5 == 0:
+            log_deep_shallow_expl(env, agent, logger, experiment_step)
 
         if early_stop(agent.dataset):
             break
