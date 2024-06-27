@@ -158,7 +158,7 @@ def compile_frames(frames):
     return new_image
 
 
-def simulate_trajectory(env: gym.Env, agent):
+def simulate_trajectory(env: gym.Env, agent, force_shallow=False):
 
     def process_obs(obs):
         obs, is_image = preprocess_image(obs)
@@ -178,6 +178,10 @@ def simulate_trajectory(env: gym.Env, agent):
         states, rewards, terminals, h = agent.model.predict(
             obs, agent.model.prev_state, batch=True
         )
+
+        if force_shallow:
+            agent.model.sample()
+
         v = agent.discount * (
             agent.value_network.predict(torch.cat((states, h), dim=1))
             * (terminals < TP_THRESHOLD)
@@ -205,6 +209,14 @@ def simulate_trajectory(env: gym.Env, agent):
     return compile_frames(frames)
 
 
+def log_shallow_effect(env, agent, logger, timestep):
+    trajs = []
+    trajs.append(simulate_trajectory(env, agent))
+    trajs.append(simulate_trajectory(env, agent, force_shallow=True))
+
+    logger.data_manager.log_images("CompareShallow", trajs, timestep)
+
+
 def log_trajectories(env: gym.Env, agent, n_traj, logger, timestep):
     trajs = []
     for _ in range(n_traj):
@@ -212,3 +224,51 @@ def log_trajectories(env: gym.Env, agent, n_traj, logger, timestep):
         agent.model.sample()
 
     logger.data_manager.log_images("Trajectories", trajs, timestep)
+
+
+from ..agent.psdrl import PSDRL
+
+
+def reaches_goal(env: gym.Env, agent: PSDRL):
+    def get_right_action():
+        row = env._row
+        col = env._column
+        return env._action_mapping[row, col]
+
+    obs = env.reset()
+    for step in range(env._size):
+        right_a = get_right_action()
+        chosen_action = agent.select_action(obs, step)
+
+        if right_a != chosen_action:
+            return 0.0
+
+        obs, *_ = env.step(chosen_action)
+
+    return 1.0
+
+
+def compute_goal_reaching_p(env: gym.Env, agent: PSDRL):
+    total_reaches = 0
+    for i in range(agent.model.ensemble_size):
+        # set sampled head
+        agent.model.sampled_index = i
+        total_reaches += reaches_goal(env, agent)
+
+    return total_reaches / agent.model.ensemble_size
+
+
+def log_deep_shallow_expl(env: gym.Env, agent: PSDRL, logger, timestep):
+    base_mode = agent.model.shallow_exploration
+
+    labels = []
+    p = []
+    for shallow in [True, False]:
+        agent.model.shallow_exploration = shallow
+        labels.append(f"GoalReaching/{'Shallow' if shallow else 'Deep'}")
+        p.append(compute_goal_reaching_p(env, agent))
+
+    logger.add_scalars(labels, p)
+    logger.data_manager.update(logger.log, timestep)
+
+    agent.model.shallow_exploration = base_mode
