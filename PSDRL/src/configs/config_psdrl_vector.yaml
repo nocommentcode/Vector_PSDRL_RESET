@@ -31,24 +31,24 @@ experiment:
 replay:
   capacity: 1e5
   batch_size: 100
-  sequence_length: 100
+  sequence_length: 250
 
 transition:
-  training_iterations: 10
+  training_iterations: 3
   hidden_dim: 150
   gru_dim: 1
   learning_rate: 1e-3
   window_length: 4
 
 value:
-  training_iterations: 10
+  training_iterations: 3
   hidden_dim: 150
   learning_rate: 1e-4
   target_update_freq: 4
   discount: 0.99
 
 terminal:
-  training_iterations: 10
+  training_iterations: 3
   hidden_dim: 150
   learning_rate: 1e-3
 
