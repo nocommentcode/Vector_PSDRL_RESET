@@ -213,6 +213,8 @@ class NeuralLinearModel:
         for i in range(self.state_size + 1):
             self.mu[i] = (self.noise_variance * Phi).matmul(x.T.matmul(y[:, i]))
 
+        self.sample()
+
     def sample(self):
         self.randsamp[:] = torch.randn(self.N, *self.mu.shape)
         self.model_samples[:, :-1, :] = self.mu[:-1] + (

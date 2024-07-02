@@ -144,7 +144,6 @@ def run_experiment(
         print(
             f"Episode {ep}, Timestep {experiment_step}, Train Reward {episode_reward}"
         )
-        agent.model.sample()
 
         # log_correct_path(env, agent)
         # log_trajectories(env, agent, 10, logger, experiment_step)
