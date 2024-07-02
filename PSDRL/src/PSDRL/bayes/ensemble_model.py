@@ -71,7 +71,8 @@ class EnsembleModel:
         return states, rewards.reshape(-1, 1), terminals, h1
 
     def update(self, dataset: Dataset):
-        self.sample()
+        # self.sample()
+        pass
 
     def sample(self):
         self.sampled_index = np.random.randint(0, self.ensemble_size)
