@@ -136,7 +136,6 @@ class PSDRL:
         values = (rewards + v).detach().cpu().numpy()
         action = self.random_state.choice(np.where(np.isclose(values, max(values)))[0])
         self.model.prev_state = h[action]
-        print(self.actions[action])
         return self.actions[action]
 
     def update(
