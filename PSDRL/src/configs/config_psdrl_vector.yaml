@@ -24,7 +24,7 @@ experiment:
   test: true
   steps: 1e6
   time_limit: 3000
-  test_freq: 1e4
+  test_freq: 1e6
   name: "PSDRL"
   seed: None
 

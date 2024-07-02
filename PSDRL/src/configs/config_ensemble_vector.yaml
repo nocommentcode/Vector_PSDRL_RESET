@@ -9,9 +9,9 @@ visual: False
 
 algorithm:
   name: Ensemble
-  update_freq: 1e1
+  update_freq: 1e2
   warmup_length: 1e1
-  warmup_freq: 1e2
+  warmup_freq: 1e1
   ensemble_size: 10
   policy_noise: 0.0
 
@@ -21,7 +21,7 @@ experiment:
   test: true
   steps: 1e6
   time_limit: 3000
-  test_freq: 1e4
+  test_freq: 1e6
   name: "Ensemble"
   seed: None
 
