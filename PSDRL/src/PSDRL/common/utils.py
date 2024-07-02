@@ -24,6 +24,14 @@ class Wrapper(ObservationWrapper):
         direction = np.array([observation["direction"]])
         return np.concatenate((obs, direction))
 
+    def step(self, action):
+        observation, reward, done, trucated, _ = super().step(action)
+        return observation, reward, done or trucated, _
+
+    def reset(self, *, seed=None, options=None):
+        obs, _ = super().reset(seed=seed, options=options)
+        return obs
+
 
 def init_env(suite: str, env: str, test: bool):
     if suite == "atari":

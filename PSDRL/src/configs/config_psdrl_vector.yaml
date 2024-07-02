@@ -11,7 +11,7 @@ algorithm:
   name: PSDRL
   reward_prior: 5e-1
   transition_prior: 5e-3
-  update_freq: 1e3
+  update_freq: 1e2
   warmup_length: 1e1
   warmup_freq: 1e1
   policy_noise: 0.0
@@ -22,7 +22,7 @@ experiment:
   suite: bsuite
   env: 5
   test: true
-  steps: 1e4
+  steps: 1e6
   time_limit: 3000
   test_freq: 1e4
   name: "PSDRL"

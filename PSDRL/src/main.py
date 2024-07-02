@@ -20,13 +20,13 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
 def run_test_episode(env: gym.Env, agent: Agent, time_limit: int):
-    current_observation, *_ = env.reset()
+    current_observation = env.reset()
     episode_step = 0
     episode_reward = 0
     done = False
     while not done:
         action = agent.select_action(current_observation, episode_step)
-        observation, reward, done, *_ = env.step(action)
+        observation, reward, done, _ = env.step(action)
         episode_reward += reward
         current_observation = observation
         episode_step += 1
@@ -104,7 +104,7 @@ def run_experiment(
         episode_step = 0
         episode_reward = 0
 
-        current_observation, *_ = env.reset()
+        current_observation = env.reset()
         done = False
         while not done:
 
@@ -118,7 +118,7 @@ def run_experiment(
                 )
 
             action = agent.select_action(current_observation, episode_step)
-            observation, reward, done, *_ = env.step(action)
+            observation, reward, done, _ = env.step(action)
             done = done or episode_step == time_limit
 
             # if done and reward >= 0.99:
@@ -168,6 +168,7 @@ def main(config: dict):
     env, actions, test_env = init_env(
         exp_config["suite"], exp_config["env"], exp_config["test"]
     )
+
     agent = Agent(
         config,
         actions,
