@@ -12,9 +12,17 @@ import bsuite
 from bsuite.utils import gym_wrapper
 from bsuite.environments import deep_sea
 from .settings import STATE_SIZE, FRAME_SKIP, NOOP
+from gymnasium.core import ObservationWrapper
 
 if TYPE_CHECKING:
     from ..agent.psdrl import PSDRL
+
+
+class Wrapper(ObservationWrapper):
+    def observation(self, observation):
+        obs = observation["image"].flatten()
+        direction = np.array([observation["direction"]])
+        return np.concatenate((obs, direction))
 
 
 def init_env(suite: str, env: str, test: bool):
@@ -49,6 +57,14 @@ def init_env(suite: str, env: str, test: bool):
             test_environment = deep_sea.DeepSea(int(env))
             test_environment = gym_wrapper.GymFromDMEnv(test_environment)
         action_space = environment.action_spec().num_values
+
+    elif suite == "minigrid":
+        environment = Wrapper(gym.make(env, max_episode_steps=1000))
+        test_environment = None
+        if test:
+            test_environment = Wrapper(gym.make(env, max_episode_steps=1000))
+        action_space = environment.action_space.n
+
     else:
         raise NotImplementedError(f"{suite} is not available.")
 

@@ -20,13 +20,13 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
 def run_test_episode(env: gym.Env, agent: Agent, time_limit: int):
-    current_observation = env.reset()
+    current_observation, *_ = env.reset()
     episode_step = 0
     episode_reward = 0
     done = False
     while not done:
         action = agent.select_action(current_observation, episode_step)
-        observation, reward, done, _ = env.step(action)
+        observation, reward, done, *_ = env.step(action)
         episode_reward += reward
         current_observation = observation
         episode_step += 1
@@ -104,7 +104,7 @@ def run_experiment(
         episode_step = 0
         episode_reward = 0
 
-        current_observation = env.reset()
+        current_observation, *_ = env.reset()
         done = False
         while not done:
 
@@ -118,11 +118,11 @@ def run_experiment(
                 )
 
             action = agent.select_action(current_observation, episode_step)
-            observation, reward, done, _ = env.step(action)
+            observation, reward, done, *_ = env.step(action)
             done = done or episode_step == time_limit
 
-            if done and reward >= 0.99:
-                log_shallow_effect(env, agent, logger, experiment_step)
+            # if done and reward >= 0.99:
+            #     log_shallow_effect(env, agent, logger, experiment_step)
 
             agent.update(
                 current_observation,
@@ -153,11 +153,11 @@ def run_experiment(
             experiment_step, train_reward=episode_reward, test_reward=np.nan
         )
 
-        if ep % 5 == 0:
-            log_deep_shallow_expl(env, agent, logger, experiment_step)
+        # if ep % 5 == 0:
+        #     log_deep_shallow_expl(env, agent, logger, experiment_step)
 
-        if early_stop(agent.dataset):
-            break
+        # if early_stop(agent.dataset):
+        #     break
 
 
 def main(config: dict):
@@ -168,7 +168,6 @@ def main(config: dict):
     env, actions, test_env = init_env(
         exp_config["suite"], exp_config["env"], exp_config["test"]
     )
-
     agent = Agent(
         config,
         actions,
@@ -176,7 +175,7 @@ def main(config: dict):
         (
             config["representation"]["embed_dim"]
             if config["visual"]
-            else np.prod(env.observation_spec().shape)
+            else np.prod(env.observation_space["image"].shape) + 1
         ),
         config["experiment"]["seed"],
     )
@@ -205,6 +204,7 @@ def run_on_seed(config):
         config["experiment"]["env"] = args.env
         config["experiment"]["seed"] = args.seed
         config["experiment"]["name"] = args.experiment_name
+        config["experiment"]["suite"] = args.suite
         if config["experiment"]["suite"] == "bsuite":
             config["replay"]["sequence_length"] = int(args.env)
 
@@ -222,6 +222,7 @@ if __name__ == "__main__":
         default="3",
         help="Currently if you put an integer it makes DeepSea with the size of that integer.",
     )
+    parser.add_argument("--suite", type=str, default="minigrid")
     parser.add_argument("--seed", type=int, nargs="+", default=None)
     parser.add_argument("--experiment_name", type=str, default="")
 
