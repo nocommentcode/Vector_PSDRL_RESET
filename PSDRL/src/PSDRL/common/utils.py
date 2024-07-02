@@ -67,10 +67,10 @@ def init_env(suite: str, env: str, test: bool):
         action_space = environment.action_spec().num_values
 
     elif suite == "minigrid":
-        environment = Wrapper(gym.make(env, max_episode_steps=1000))
+        environment = Wrapper(gym.make(env))
         test_environment = None
         if test:
-            test_environment = Wrapper(gym.make(env, max_episode_steps=1000))
+            test_environment = Wrapper(gym.make(env))
         action_space = environment.action_space.n
 
     else:
