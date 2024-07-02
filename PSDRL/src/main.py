@@ -76,7 +76,7 @@ def log_correct_path(env: gym.Env, agent):
 
 
 def early_stop(dataset) -> bool:
-    n_episodes = 20
+    n_episodes = 500
     last_n_episodes = dataset.episodes[-n_episodes:]
 
     episode_returns = [ep["cum_rew"] for ep in last_n_episodes]
@@ -156,8 +156,8 @@ def run_experiment(
         # if ep % 5 == 0:
         #     log_deep_shallow_expl(env, agent, logger, experiment_step)
 
-        # if early_stop(agent.dataset):
-        #     break
+        if early_stop(agent.dataset):
+            break
 
 
 def main(config: dict):
