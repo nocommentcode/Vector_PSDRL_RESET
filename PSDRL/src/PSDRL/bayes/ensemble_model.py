@@ -70,6 +70,20 @@ class EnsembleModel:
         terminals = self.terminal_network.predict(states)
         return states, rewards.reshape(-1, 1), terminals, h1
 
+    def predict_exploite(self, x: torch.tensor, h: torch.tensor):
+        x, h = create_state_action_batch(
+            x, self.actions, h, self.num_actions, self.device
+        )
+        obs = torch.concatenate([x for _ in range(self.ensemble_size)], 0)
+        h = torch.concatenate([h for _ in range(self.ensemble_size)], 0)
+
+        # predict for all ensemble
+        prediction, h1 = self.transition_network.predict(obs, h)
+        states, rewards = prediction[:, :-1], prediction[:, -1]
+
+        terminals = self.terminal_network.predict(states)
+        return states, rewards.reshape(-1, 1), terminals, h1
+
     def update(self, dataset: Dataset):
         self.sample()
 

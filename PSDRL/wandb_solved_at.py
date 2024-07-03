@@ -22,6 +22,7 @@ class WandbRunCollection:
             filters={
                 "config.algorithm.name": algorithm,
                 "config.experiment.env": env,
+                "config.transition.hidden_dim": 150,
             },
         )
 
@@ -62,13 +63,17 @@ class WandbRunCollection:
             envs = np.array(envs)
             means = np.array(means)
             stds = np.array(stds)
+            # TODO: seaborn bootstrapped intervals
+            # look into colloseum
 
+            # bit flippy - very sparse
+            #
             ax.plot(envs, means, color=colors[i], label=algo)
             ax.fill_between(
                 envs, means - stds, means + stds, color=colors[i], alpha=0.3
             )
 
-        ax.plot(self.envs, [2 ** (e + 1) for e in self.envs], "--", label="2^N+1")
+        # ax.plot(self.envs, [2 ** (e) for e in self.envs], "--", label="2^N")
         ax.set_title("DeepSea # Episodes to solve")
         ax.set_xlabel("Env size")
         ax.set_xticks(self.envs)
@@ -123,6 +128,6 @@ if __name__ == "__main__":
     # args = parser.parse_args()
 
     # run(args.e)
-    w = WandbRunCollection(ALGORITHMS, envs=[4, 6, 8, 10])
+    w = WandbRunCollection(ALGORITHMS, envs=[4, 6, 8, 10, 15])
     w.plot_solved_vs_env()
     g = 0

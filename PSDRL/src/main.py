@@ -7,7 +7,7 @@ from ruamel.yaml import YAML
 import gym
 
 from PSDRL.common.data_manager import DataManager
-from PSDRL.common.utils import init_env, load, preprocess_image
+from PSDRL.common.utils import init_env, load
 from PSDRL.common.logger import Logger
 from PSDRL.agent import Agent
 from PSDRL.common.plot_deep_sea import (
@@ -25,7 +25,7 @@ def run_test_episode(env: gym.Env, agent: Agent, time_limit: int):
     episode_reward = 0
     done = False
     while not done:
-        action = agent.select_action(current_observation, episode_step)
+        action = agent.exploite(current_observation, episode_step)
         observation, reward, done, _ = env.step(action)
         episode_reward += reward
         current_observation = observation
@@ -34,45 +34,44 @@ def run_test_episode(env: gym.Env, agent: Agent, time_limit: int):
     return episode_reward
 
 
-def log_correct_path(env: gym.Env, agent):
-    def get_right_action():
-        row = env._row
-        col = env._column
-        return env._action_mapping[row, col]
+# def log_correct_path(env: gym.Env, agent):
+#     def get_right_action():
+#         row = env._row
+#         col = env._column
+#         return env._action_mapping[row, col]
 
-    agent.model.prev_state[:] = torch.zeros(agent.model.transition_network.gru_dim)
-    obs = env.reset()
-    for time in range(env._size):
-        right_a = get_right_action()
-        print(right_a)
+#     agent.model.prev_state[:] = torch.zeros(agent.model.transition_network.gru_dim)
+#     obs = env.reset()
+#     for time in range(env._size):
+#         right_a = get_right_action()
+#         print(right_a)
 
-        obs, is_image = preprocess_image(obs)
-        obs = torch.from_numpy(obs).float().to(agent.device)
-        if is_image:
-            obs = agent.model.autoencoder.embed(obs)
-        states, rewards, terminals, h = agent.model.predict(
-            obs, agent.model.prev_state, batch=True
-        )
+#         obs = torch.from_numpy(obs).float().to(agent.device)
+#         if is_image:
+#             obs = agent.model.autoencoder.embed(obs)
+#         states, rewards, terminals, h = agent.model.predict(
+#             obs, agent.model.prev_state, batch=True
+#         )
 
-        obs, reward, done, _ = env.step(right_a)
+#         obs, reward, done, _ = env.step(right_a)
 
-        pred_state = states[right_a]
-        pred_state = (
-            pred_state.detach().cpu().numpy().reshape((env._size, env._size)).round(0)
-        )
-        pred_rew = rewards[right_a]
-        pred_rew = pred_rew.detach().cpu().numpy().round(3)[0]
+#         pred_state = states[right_a]
+#         pred_state = (
+#             pred_state.detach().cpu().numpy().reshape((env._size, env._size)).round(0)
+#         )
+#         pred_rew = rewards[right_a]
+#         pred_rew = pred_rew.detach().cpu().numpy().round(3)[0]
 
-        pred_terminals = terminals[right_a]
-        pred_terminals = pred_terminals.detach().cpu().numpy().round(3)[0]
+#         pred_terminals = terminals[right_a]
+#         pred_terminals = pred_terminals.detach().cpu().numpy().round(3)[0]
 
-        agent.model.prev_state = h[right_a]
+#         agent.model.prev_state = h[right_a]
 
-        print(f"Time {time}:")
-        print(pred_rew)
-        print(f"{reward},{done} {' '*env._size}{str(pred_rew)}, {str(pred_terminals)}")
-        for act, pred in zip(obs, pred_state):
-            print(act, pred)
+#         print(f"Time {time}:")
+#         print(pred_rew)
+#         print(f"{reward},{done} {' '*env._size}{str(pred_rew)}, {str(pred_terminals)}")
+#         for act, pred in zip(obs, pred_state):
+#             print(act, pred)
 
 
 def early_stop(dataset) -> bool:
@@ -176,7 +175,7 @@ def main(config: dict):
         (
             config["representation"]["embed_dim"]
             if config["visual"]
-            else np.prod(env.observation_space["image"].shape) + 1
+            else np.prod(env.observation_space.shape)
         ),
         config["experiment"]["seed"],
     )

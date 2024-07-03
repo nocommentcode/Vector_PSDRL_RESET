@@ -11,26 +11,12 @@ from skimage import color
 import bsuite
 from bsuite.utils import gym_wrapper
 from bsuite.environments import deep_sea
+
+from ..common.MiniGridWrapper import MiniGridWrapper
 from .settings import STATE_SIZE, FRAME_SKIP, NOOP
-from gymnasium.core import ObservationWrapper
 
 if TYPE_CHECKING:
     from ..agent.psdrl import PSDRL
-
-
-class Wrapper(ObservationWrapper):
-    def observation(self, observation):
-        obs = observation["image"].flatten()
-        direction = np.array([observation["direction"]])
-        return np.concatenate((obs, direction))
-
-    def step(self, action):
-        observation, reward, done, trucated, _ = super().step(action)
-        return observation, reward, done or trucated, _
-
-    def reset(self, *, seed=None, options=None):
-        obs, _ = super().reset(seed=seed, options=options)
-        return obs
 
 
 def init_env(suite: str, env: str, test: bool):
@@ -67,10 +53,10 @@ def init_env(suite: str, env: str, test: bool):
         action_space = environment.action_spec().num_values
 
     elif suite == "minigrid":
-        environment = Wrapper(gym.make(env))
+        environment = MiniGridWrapper(gym.make(env))
         test_environment = None
         if test:
-            test_environment = Wrapper(gym.make(env))
+            test_environment = MiniGridWrapper(gym.make(env))
         action_space = environment.action_space.n
 
     else:

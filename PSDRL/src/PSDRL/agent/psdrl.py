@@ -7,7 +7,6 @@ from ..ensemble.ensemble_transition_model import EnsembleTransitionModel
 
 from ..common.logger import Logger
 from ..common.replay import Dataset
-from ..common.utils import preprocess_image
 from ..networks.representation import AutoEncoder
 from ..networks.terminal import Network as TerminalNetwork
 from ..networks.transition import Network as TransitionNetwork
@@ -115,10 +114,11 @@ class PSDRL:
 
         if self.random_state.random() < self.epsilon:
             return self.random_state.choice(self.num_actions)
-        obs, is_image = preprocess_image(obs)
+
         obs = torch.from_numpy(obs).float().to(self.device)
-        if is_image:
+        if self.model.autoencoder is not None:
             obs = self.model.autoencoder.embed(obs)
+
         return self._select_action(obs, step)
 
     def _select_action(self, obs: torch.tensor, step):
@@ -138,6 +138,22 @@ class PSDRL:
         self.model.prev_state = h[action]
         return self.actions[action]
 
+    def exploite(self, obs: np.array, step: int):
+        if step == 0:
+            self.model.prev_state[:] = torch.zeros(
+                self.model.transition_network.gru_dim
+            )
+
+        obs = torch.from_numpy(obs).float().to(self.device)
+        if self.model.autoencoder is not None:
+            obs = self.model.autoencoder.embed(obs)
+
+        action = self.exploitation_policy(obs)
+        return self.actions[action]
+
+    def exploitation_policy(self, obs: torch.tensor):
+        pass
+
     def update(
         self,
         current_obs: np.array,
@@ -156,7 +172,6 @@ class PSDRL:
          - Sample new model from posteriors.
          - Update value network based on the new sampled model (Equation 5).
         """
-        current_obs, obs = preprocess_image(current_obs)[0], preprocess_image(obs)[0]
         self.dataset.add_data(current_obs, action, obs, rew, done)
         update_freq = (
             self.update_freq if timestep > self.warmup_length else self.warmup_freq
@@ -195,6 +210,20 @@ class NeuralLinearPSDRL(PSDRL):
 
         return model
 
+    def exploitation_policy(self, obs: torch.tensor):
+        states, rewards, terminals, h = self.model.predict_nn(
+            obs, self.model.prev_state
+        )
+        v = self.discount * (
+            self.value_network.predict(torch.cat((states, h), dim=1))
+            * (terminals < TP_THRESHOLD)
+        )
+        values = (rewards + v).detach().cpu().numpy()
+        action = self.random_state.choice(np.where(np.isclose(values, max(values)))[0])
+        self.model.prev_state = h[action]
+
+        return action
+
 
 class EnsemblePSDRL(PSDRL):
     def build_transition_model(self, env_dim, config):
@@ -223,6 +252,33 @@ class EnsemblePSDRL(PSDRL):
         )
 
         return model
+
+    def exploitation_policy(self, obs: torch.tensor):
+        states, rewards, terminals, h = self.model.predict_exploite(
+            obs, self.model.prev_state
+        )
+        v = self.discount * (
+            self.value_network.predict(torch.cat((states, h), dim=1))
+            * (terminals < TP_THRESHOLD)
+        )
+        values = rewards + v
+        values = values.view((self.model.ensemble_size, -1, *values.shape[1:]))
+        values = values.detach().cpu().numpy()
+
+        # values = J x A x 1
+        actions = []
+        for j in range(self.model.ensemble_size):
+            action = self.random_state.choice(
+                np.where(np.isclose(values[j], max(values[j])))[0]
+            )
+            actions.append(action)
+        actions = np.array(actions)
+
+        unique, counts = np.unique(actions, return_counts=True)
+        action = unique[np.argmax(counts)]
+        self.model.prev_state = h[action]
+
+        return action
 
 
 class ShallowEnsemblePSDRL(EnsemblePSDRL):
