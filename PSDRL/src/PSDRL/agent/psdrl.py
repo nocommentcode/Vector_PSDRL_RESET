@@ -6,7 +6,7 @@ from ..bayes.ensemble_model import EnsembleModel
 from ..ensemble.ensemble_transition_model import EnsembleTransitionModel
 
 from ..common.logger import Logger
-from ..common.replay import Dataset
+from ..common.replay import Dataset, EnsembleDataset
 from ..common.utils import preprocess_image
 from ..networks.representation import AutoEncoder
 from ..networks.terminal import Network as TerminalNetwork
@@ -170,6 +170,7 @@ class PSDRL:
 
 
 class NeuralLinearPSDRL(PSDRL):
+
     def build_transition_model(self, env_dim, config):
         transition_network = TransitionNetwork(
             env_dim,
@@ -197,6 +198,26 @@ class NeuralLinearPSDRL(PSDRL):
 
 
 class EnsemblePSDRL(PSDRL):
+    def __init__(
+        self,
+        config: dict,
+        actions: list,
+        logger: Logger,
+        env_dim: int,
+        seed: int = None,
+    ):
+        super().__init__(config, actions, logger, env_dim, seed)
+        self.dataset = EnsembleDataset(
+            logger,
+            config["replay"],
+            config["experiment"]["time_limit"],
+            self.device,
+            config["visual"],
+            env_dim,
+            config["algorithm"]["ensemble_size"],
+            seed,
+        )
+
     def build_transition_model(self, env_dim, config):
         transition_network = EnsembleTransitionModel(
             env_dim,
