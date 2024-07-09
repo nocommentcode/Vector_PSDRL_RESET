@@ -195,6 +195,9 @@ class EnsembleDataset(Dataset):
         episode_mask = episode_mask[: len(self.episodes)]
         ensemble_episodes = np.where(episode_mask)[0]
 
+        if len(ensemble_episodes) == 0:
+            ensemble_episodes = episode_mask
+
         # randomly sample episode that has minimim required length
         while ep_len < sequence_length:
             ep = self.random_state.choice(ensemble_episodes)
