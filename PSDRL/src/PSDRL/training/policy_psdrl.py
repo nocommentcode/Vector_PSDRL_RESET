@@ -39,6 +39,7 @@ class PolicyTrainer:
         self.value_network.loss = self.value_network.loss_function(outputs, targets)
 
         self.value_network.loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.value_network.parameters(), 5e-4)
         self.value_network.optimizer.step()
 
     def simulate(
@@ -95,7 +96,11 @@ class PolicyTrainer:
                 if idx % self.target_update_freq == 0:
                     self.target_net = deepcopy(self.value_network.layers)
 
-                s = model.autoencoder.embed(o[:, idx]) if model.autoencoder else o[:, idx]
+                s = (
+                    model.autoencoder.embed(o[:, idx])
+                    if model.autoencoder
+                    else o[:, idx]
+                )
                 inputs = torch.cat((s, self.prev_states), dim=1)
 
                 rewards, next_states, terminals, self.prev_states, h1 = self.simulate(
