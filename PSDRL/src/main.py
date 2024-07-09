@@ -154,6 +154,7 @@ def run_on_seed(config):
 
         config["experiment"]["env"] = args.env
         config["experiment"]["seed"] = args.seed
+        config["experiment"]["suite"] = args.suite
         config["experiment"]["name"] = args.experiment_name
         if config["experiment"]["suite"] == "bsuite":
             config["replay"]["sequence_length"] = int(args.env)
@@ -173,6 +174,7 @@ if __name__ == "__main__":
         help="Currently if you put an integer it makes DeepSea with the size of that integer.",
     )
     parser.add_argument("--seed", type=int, nargs="+", default=None)
+    parser.add_argument("--suite", type=str, default="bsuite")
     parser.add_argument("--experiment_name", type=str, default="")
 
     args = parser.parse_args()

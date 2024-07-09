@@ -54,11 +54,11 @@ class MiniGridWrapper(ObservationWrapper):
 
     def step(self, action):
         observation, reward, done, trucated, _ = self.env.step(action)
-        return observation, reward, done or trucated, _
+        return self.observation(observation), reward, done or trucated, _
 
     def reset(self, *, seed=None, options=None):
         obs, _ = self.env.reset()
-        return obs
+        return self.observation(obs)
 
 
 def init_env(suite: str, env: str, test: bool):
@@ -95,6 +95,14 @@ def init_env(suite: str, env: str, test: bool):
                 gym_wrapper.GymFromDMEnv(test_environment)
             )
         action_space = environment.action_spec().num_values
+
+    elif suite == "minigrid":
+        environment = MiniGridWrapper(gym.make(env))
+        test_environment = None
+        if test:
+            test_environment = MiniGridWrapper(gym.make(env))
+        action_space = environment.action_space.n
+
     else:
         raise NotImplementedError(f"{suite} is not available.")
 
