@@ -21,6 +21,7 @@ algorithm:
 experiment:
   suite: bsuite
   env: 5
+  unscaled_move_cost: 0.01
   test: true
   steps: 5e4
   time_limit: 1500

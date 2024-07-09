@@ -1,6 +1,25 @@
 import gymnasium as gym
 import numpy as np
-from gymnasium.core import ObservationWrapper
+from gymnasium.core import ObservationWrapper, Wrapper
+
+
+class DeepSeaWrapper(Wrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Box(
+            0, 1, (np.prod(self.env.observation_space.shape),)
+        )
+
+    def reset(self):
+        obs = self.env.reset()
+        return self.flatten_obs(obs)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        return self.flatten_obs(obs), reward, done, info
+
+    def flatten_obs(self, obs):
+        return obs.flatten()
 
 
 class MiniGridWrapper(ObservationWrapper):

@@ -15,8 +15,8 @@ class Dataset:
         config: dict,
         time_limit: int,
         device: str,
-        visual : bool,
-        state_size : int,
+        visual: bool,
+        state_size: int,
         seed: int = None,
     ):
 
@@ -39,13 +39,21 @@ class Dataset:
 
         self.tmp_episode = {
             "states": torch.zeros(
-                (time_limit + 1, STATE_SIZE, STATE_SIZE) if visual else (time_limit + 1, state_size),
+                (
+                    (time_limit + 1, STATE_SIZE, STATE_SIZE)
+                    if visual
+                    else (time_limit + 1, state_size)
+                ),
                 dtype=torch.uint8,
                 device=self.device,
             ),
             "actions": torch.zeros((time_limit + 1, 1), device=self.device),
             "next_states": torch.zeros(
-                (time_limit + 1, STATE_SIZE, STATE_SIZE) if visual else (time_limit + 1, state_size),
+                (
+                    (time_limit + 1, STATE_SIZE, STATE_SIZE)
+                    if visual
+                    else (time_limit + 1, state_size)
+                ),
                 dtype=torch.uint8,
                 device=self.device,
             ),
@@ -73,7 +81,7 @@ class Dataset:
             preprocess(new_next_state)
         ).type(torch.uint8)
         self.tmp_episode["rewards"][self.add_idx] = torch.tensor(np.tanh(new_reward))
-        
+
         self.tmp_episode["terminals"][self.add_idx] = torch.tensor(new_terminal)
 
         self.add_idx += 1
@@ -109,6 +117,18 @@ class Dataset:
             self.add_idx = 0
             self.cum_rew = 0
 
+    def sample_episode(self, sequence_length, batch_idx):
+        ep_len = 0
+        # randomly sample episode that has minimim required length
+        while ep_len < sequence_length:
+            ep = self.random_state.randint(0, len(self.episodes))
+            ep_len = len(self.episodes[ep]["states"])
+
+        # randomly sample timestep
+        timestep = self.random_state.randint(0, ep_len - sequence_length + 1)
+
+        return ep, timestep
+
     def sample_sequences(self):
         """
         Sample B sequences of length L, where L is set to the current minimum episode length if no episodes exist that
@@ -121,30 +141,66 @@ class Dataset:
             if self.max_ep_len > self.sequence_len
             else self.min_ep_len
         )
-        for _ in range(self.batch_size):
-            ep_len = 0
-            while ep_len < sequence_length:
-                ep = self.random_state.randint(0, len(self.episodes))
-                ep_len = len(self.episodes[ep]["states"])
-            timestep = self.random_state.randint(0, ep_len - sequence_length + 1)
+        for i in range(self.batch_size):
+            ep, timestep = self.sample_episode(sequence_length, i)
             batches.append(
                 {
                     "states": self.episodes[ep]["states"][
-                        timestep: timestep + sequence_length
+                        timestep : timestep + sequence_length
                     ],
                     "actions": self.episodes[ep]["actions"][
-                        timestep: timestep + sequence_length
+                        timestep : timestep + sequence_length
                     ],
                     "next_states": self.episodes[ep]["next_states"][
-                        timestep: timestep + sequence_length
+                        timestep : timestep + sequence_length
                     ],
                     "rewards": self.episodes[ep]["rewards"][
-                        timestep: timestep + sequence_length
+                        timestep : timestep + sequence_length
                     ],
                     "terminals": self.episodes[ep]["terminals"][
-                        timestep: timestep + sequence_length
+                        timestep : timestep + sequence_length
                     ],
                 }
             )
         return extract_episode_data(batches)
 
+
+class EnsembleDataset(Dataset):
+    def __init__(
+        self,
+        logger: "Logger",
+        config: dict,
+        time_limit: int,
+        device: str,
+        visual: bool,
+        state_size: int,
+        ensemble_size: int,
+        seed: int = None,
+    ):
+        super().__init__(logger, config, time_limit, device, visual, state_size, seed)
+        self.ensemble_size = ensemble_size
+
+        # map episode index to ensemble index
+        self.episode_ensemble_map = np.random.randint(
+            0, ensemble_size, size=int(self.capacity)
+        )
+        self.ensemble_batch = self.batch_size // self.ensemble_size
+
+    def sample_episode(self, sequence_length, batch_idx):
+        ep_len = 0
+
+        ensemble_idx = batch_idx // self.ensemble_batch
+
+        episode_mask = self.episode_ensemble_map == ensemble_idx
+        episode_mask = episode_mask[: len(self.episodes)]
+        ensemble_episodes = np.where(episode_mask)[0]
+
+        # randomly sample episode that has minimim required length
+        while ep_len < sequence_length:
+            ep = self.random_state.choice(ensemble_episodes)
+            ep_len = len(self.episodes[ep]["states"])
+
+        # randomly sample timestep
+        timestep = self.random_state.randint(0, ep_len - sequence_length + 1)
+
+        return ep, timestep

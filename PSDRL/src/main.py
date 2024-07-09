@@ -165,7 +165,7 @@ def main(config: dict):
     exp_config = config["experiment"]
 
     env, actions, test_env = init_env(
-        exp_config["suite"], exp_config["env"], exp_config["test"]
+        exp_config["suite"], exp_config["env"], exp_config["test"], exp_config
     )
 
     agent = Agent(
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         default="3",
         help="Currently if you put an integer it makes DeepSea with the size of that integer.",
     )
-    parser.add_argument("--suite", type=str, default="minigrid")
+    parser.add_argument("--suite", type=str, default="bsuite")
     parser.add_argument("--seed", type=int, nargs="+", default=None)
     parser.add_argument("--experiment_name", type=str, default="")
 

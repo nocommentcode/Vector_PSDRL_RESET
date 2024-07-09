@@ -12,14 +12,14 @@ import bsuite
 from bsuite.utils import gym_wrapper
 from bsuite.environments import deep_sea
 
-from ..common.MiniGridWrapper import MiniGridWrapper
+from ..common.MiniGridWrapper import DeepSeaWrapper, MiniGridWrapper
 from .settings import STATE_SIZE, FRAME_SKIP, NOOP
 
 if TYPE_CHECKING:
     from ..agent.psdrl import PSDRL
 
 
-def init_env(suite: str, env: str, test: bool):
+def init_env(suite: str, env: str, test: bool, config):
     if suite == "atari":
         full_game_name = "{}NoFrameskip-v4".format(env)
         environment = gym.make(full_game_name)
@@ -42,14 +42,20 @@ def init_env(suite: str, env: str, test: bool):
         action_space = environment.action_space.n
 
     elif suite == "bsuite":
-        environment = deep_sea.DeepSea(int(env))
-        environment = gym_wrapper.GymFromDMEnv(environment)
+        environment = deep_sea.DeepSea(
+            int(env), unscaled_move_cost=config["unscaled_move_cost"]
+        )
+        environment = DeepSeaWrapper(gym_wrapper.GymFromDMEnv(environment))
 
         test_environment = None
         if test:
 
-            test_environment = deep_sea.DeepSea(int(env))
-            test_environment = gym_wrapper.GymFromDMEnv(test_environment)
+            test_environment = deep_sea.DeepSea(
+                int(env), unscaled_move_cost=config["unscaled_move_cost"]
+            )
+            test_environment = DeepSeaWrapper(
+                gym_wrapper.GymFromDMEnv(test_environment)
+            )
         action_space = environment.action_spec().num_values
 
     elif suite == "minigrid":
