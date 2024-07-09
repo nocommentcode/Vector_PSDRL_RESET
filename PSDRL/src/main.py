@@ -34,47 +34,6 @@ def run_test_episode(env: gym.Env, agent: Agent, time_limit: int):
     return episode_reward
 
 
-def log_correct_path(env: gym.Env, agent):
-    def get_right_action():
-        row = env._row
-        col = env._column
-        return env._action_mapping[row, col]
-
-    agent.model.prev_state[:] = torch.zeros(agent.model.transition_network.gru_dim)
-    obs = env.reset()
-    for time in range(env._size):
-        right_a = get_right_action()
-        print(right_a)
-
-        obs, is_image = preprocess_image(obs)
-        obs = torch.from_numpy(obs).float().to(agent.device)
-        if is_image:
-            obs = agent.model.autoencoder.embed(obs)
-        states, rewards, terminals, h = agent.model.predict(
-            obs, agent.model.prev_state, batch=True
-        )
-
-        obs, reward, done, _ = env.step(right_a)
-
-        pred_state = states[right_a]
-        pred_state = (
-            pred_state.detach().cpu().numpy().reshape((env._size, env._size)).round(0)
-        )
-        pred_rew = rewards[right_a]
-        pred_rew = pred_rew.detach().cpu().numpy().round(3)[0]
-
-        pred_terminals = terminals[right_a]
-        pred_terminals = pred_terminals.detach().cpu().numpy().round(3)[0]
-
-        agent.model.prev_state = h[right_a]
-
-        print(f"Time {time}:")
-        print(pred_rew)
-        print(f"{reward},{done} {' '*env._size}{str(pred_rew)}, {str(pred_terminals)}")
-        for act, pred in zip(obs, pred_state):
-            print(act, pred)
-
-
 def early_stop(dataset) -> bool:
     n_episodes = 20
     last_n_episodes = dataset.episodes[-n_episodes:]
@@ -121,9 +80,6 @@ def run_experiment(
             observation, reward, done, _ = env.step(action)
             done = done or episode_step == time_limit
 
-            if done and reward >= 0.99:
-                log_shallow_effect(env, agent, logger, experiment_step)
-
             agent.update(
                 current_observation,
                 action,
@@ -145,16 +101,10 @@ def run_experiment(
             f"Episode {ep}, Timestep {experiment_step}, Train Reward {episode_reward}"
         )
 
-        # log_correct_path(env, agent)
-        # log_trajectories(env, agent, 10, logger, experiment_step)
-
         ep += 1
         logger.log_episode(
             experiment_step, train_reward=episode_reward, test_reward=np.nan
         )
-
-        if ep % 5 == 0:
-            log_deep_shallow_expl(env, agent, logger, experiment_step)
 
         if early_stop(agent.dataset):
             break
@@ -176,7 +126,7 @@ def main(config: dict):
         (
             config["representation"]["embed_dim"]
             if config["visual"]
-            else np.prod(env.observation_spec().shape)
+            else env.observation_space.shape[0]
         ),
         config["experiment"]["seed"],
     )

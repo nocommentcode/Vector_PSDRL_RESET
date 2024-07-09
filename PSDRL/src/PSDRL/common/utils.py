@@ -16,6 +16,50 @@ from .settings import STATE_SIZE, FRAME_SKIP, NOOP
 if TYPE_CHECKING:
     from ..agent.psdrl import PSDRL
 
+from gymnasium import ObservationWrapper, Wrapper
+
+
+class DeepSeaWrapper(Wrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Box(
+            0, 1, (np.prod(self.env.observation_space.shape),)
+        )
+
+    def reset(self, *, seed=None, options=None):
+        obs = self.env.reset()
+        return self.flatten(obs)
+
+    def step(self, action):
+        obs, *rest = self.env.step(action)
+        return self.flatten(obs), *rest
+
+    def flatten(self, obs):
+        return obs.flatten()
+
+
+class MiniGridWrapper(ObservationWrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Box(
+            0,
+            255,
+            (np.prod(env.observation_space["image"].shape) + 1,),
+        )
+
+    def observation(self, observation):
+        obs = observation["image"].flatten()
+        direction = np.array([observation["direction"]])
+        return np.concatenate((obs, direction))
+
+    def step(self, action):
+        observation, reward, done, trucated, _ = self.env.step(action)
+        return observation, reward, done or trucated, _
+
+    def reset(self, *, seed=None, options=None):
+        obs, _ = self.env.reset()
+        return obs
+
 
 def init_env(suite: str, env: str, test: bool):
     if suite == "atari":
@@ -41,13 +85,15 @@ def init_env(suite: str, env: str, test: bool):
 
     elif suite == "bsuite":
         environment = deep_sea.DeepSea(int(env))
-        environment = gym_wrapper.GymFromDMEnv(environment)
+        environment = DeepSeaWrapper(gym_wrapper.GymFromDMEnv(environment))
 
         test_environment = None
         if test:
 
             test_environment = deep_sea.DeepSea(int(env))
-            test_environment = gym_wrapper.GymFromDMEnv(test_environment)
+            test_environment = DeepSeaWrapper(
+                gym_wrapper.GymFromDMEnv(test_environment)
+            )
         action_space = environment.action_spec().num_values
     else:
         raise NotImplementedError(f"{suite} is not available.")

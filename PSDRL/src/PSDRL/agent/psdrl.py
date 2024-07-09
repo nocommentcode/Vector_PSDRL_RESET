@@ -7,7 +7,6 @@ from ..ensemble.ensemble_transition_model import EnsembleTransitionModel
 
 from ..common.logger import Logger
 from ..common.replay import Dataset, EnsembleDataset
-from ..common.utils import preprocess_image
 from ..networks.representation import AutoEncoder
 from ..networks.terminal import Network as TerminalNetwork
 from ..networks.transition import Network as TransitionNetwork
@@ -115,9 +114,8 @@ class PSDRL:
 
         if self.random_state.random() < self.epsilon:
             return self.random_state.choice(self.num_actions)
-        obs, is_image = preprocess_image(obs)
         obs = torch.from_numpy(obs).float().to(self.device)
-        if is_image:
+        if self.model.autoencoder is not None:
             obs = self.model.autoencoder.embed(obs)
         return self._select_action(obs, step)
 
@@ -156,7 +154,6 @@ class PSDRL:
          - Sample new model from posteriors.
          - Update value network based on the new sampled model (Equation 5).
         """
-        current_obs, obs = preprocess_image(current_obs)[0], preprocess_image(obs)[0]
         self.dataset.add_data(current_obs, action, obs, rew, done)
         update_freq = (
             self.update_freq if timestep > self.warmup_length else self.warmup_freq
@@ -198,26 +195,6 @@ class NeuralLinearPSDRL(PSDRL):
 
 
 class EnsemblePSDRL(PSDRL):
-    def __init__(
-        self,
-        config: dict,
-        actions: list,
-        logger: Logger,
-        env_dim: int,
-        seed: int = None,
-    ):
-        super().__init__(config, actions, logger, env_dim, seed)
-        self.dataset = EnsembleDataset(
-            logger,
-            config["replay"],
-            config["experiment"]["time_limit"],
-            self.device,
-            config["visual"],
-            env_dim,
-            config["algorithm"]["ensemble_size"],
-            seed,
-        )
-
     def build_transition_model(self, env_dim, config):
         transition_network = EnsembleTransitionModel(
             env_dim,
