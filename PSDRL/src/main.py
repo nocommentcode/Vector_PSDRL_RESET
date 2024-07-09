@@ -155,8 +155,8 @@ def run_experiment(
         # if ep % 5 == 0:
         #     log_deep_shallow_expl(env, agent, logger, experiment_step)
 
-        # if early_stop(agent.dataset):
-        #     break
+        if early_stop(agent.dataset):
+            break
 
 
 def main(config: dict):
