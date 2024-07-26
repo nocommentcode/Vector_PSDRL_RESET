@@ -39,7 +39,7 @@ class PolicyTrainer:
         self.value_network.loss = self.value_network.loss_function(outputs, targets)
 
         self.value_network.loss.backward()
-        norm = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(), 5e-4)
+        norm = torch.nn.utils.clip_grad_norm_(self.value_network.parameters(), 100)
         self.value_network.optimizer.step()
 
         return norm
