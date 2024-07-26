@@ -37,22 +37,24 @@ def make_frame(obs, reward, terminal):
     return Image.open(buf)
 
 
-def make_traj_frame(coords):
+def make_traj_frame(coords, size):
     plt.close()
     x_coords = [x for x, _ in coords]
     y_coords = [y for _, y in coords]
 
-    plt.plot(x_coords, y_coords, color=("green" if coords[-1] == (3, 3) else "blue"))
+    plt.plot(
+        x_coords, y_coords, color=("green" if coords[-1] == (size, size) else "blue")
+    )
     plt.grid()
-    plt.xlim(0, 4)
-    plt.ylim(0, 4)
+    plt.xlim(0, size + 1)
+    plt.ylim(0, size + 1)
 
     ax = plt.gca()
 
     start_circle = Circle((1, 1), radius=0.3, color="b")
     ax.add_patch(start_circle)
 
-    end_circle = Circle((3, 3), radius=0.3, color="g")
+    end_circle = Circle((size, size), radius=0.3, color="g")
     ax.add_patch(end_circle)
 
     # save figure to PIL image
@@ -135,15 +137,16 @@ def simulate_trajectories(env: gym.Env, agent: PSDRL, logger, timestep, n=10):
     for i in range(n):
         obs = env.reset()
         coords = []
-        for t in range(100):
+        for t in range(env.unwrapped.max_steps):
             a = agent.select_action(obs, t)
             obs, rew, terminal, *_ = env.step(a)
             coords.append(env.unwrapped.agent_pos)
             if terminal:
                 break
-        trajs.append(make_traj_frame(coords))
+        trajs.append(make_traj_frame(coords, env.unwrapped.width))
 
     image = compile_frames(trajs)
+
     logger.data_manager.log_images("Trajectories", [image], timestep)
 
 
@@ -174,9 +177,7 @@ def move_to_coord_and_rotate(env, agent, x, y):
     # move agent to desired square
     for action in actions:
         obs = torch.from_numpy(obs).float().to(agent.device)
-        states, rewards, terminals, h = agent.model.predict(
-            obs, agent.model.prev_state, batch=True
-        )
+        *_, h = agent.model.predict(obs, agent.model.prev_state, batch=True)
         agent.model.prev_state = h[action]
         obs, *_ = env.step(action)
 
@@ -184,13 +185,10 @@ def move_to_coord_and_rotate(env, agent, x, y):
     hiddens[0] = agent.model.prev_state
     observations = torch.zeros((4, *obs.shape)).to(agent.device)
     observations[0] = torch.from_numpy(obs).float().to(agent.device)
-
     # rotate 3 times to get remaining directions
     for i in range(1, 4):
         obs = torch.from_numpy(obs).float().to(agent.device)
-        states, rewards, terminals, h = agent.model.predict(
-            obs, agent.model.prev_state, batch=True
-        )
+        *_, h = agent.model.predict(obs, agent.model.prev_state, batch=True)
         agent.model.prev_state = h[TURN_RIGHT]
         obs, *_ = env.step(TURN_RIGHT)
         hiddens[i] = h[TURN_RIGHT]
@@ -220,13 +218,16 @@ def get_obs_for(env, x, y, dir):
 
 
 def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
-    values = np.zeros((3 * 2, 3 * 2))
+    size = env.unwrapped.width - 2
+    values = np.zeros((size * 2, size * 2))
+
     env.reset()
     plt.close()
-    for x in range(1, 4):
-        for y in range(1, 4):
+
+    for x in range(1, size + 1):
+        for y in range(1, size + 1):
             hidden, obs = move_to_coord_and_rotate(env, agent, x, y)
-            v = np.tan(get_value_for_obs(obs, hidden, agent).detach().cpu().numpy())
+            v = get_value_for_obs(obs, hidden, agent).detach().cpu().numpy()
             x_c = (x - 1) * 2
             y_c = (y - 1) * 2
             values[x_c, y_c] = v[0]
@@ -234,9 +235,35 @@ def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
             values[x_c, y_c + 1] = v[2]
             values[x_c + 1, y_c + 1] = v[3]
 
+    # plot heatmap
     ax = sns.heatmap(values, linewidth=0.5, xticklabels=[], yticklabels=[])
-    ax.vlines([x * 2 for x in range(5)], 0, 3 * 2, colors="black")
-    ax.hlines([y * 2 for y in range(5)], 0, 3 * 2, colors="black")
+
+    # plot gridlines
+    ax.vlines(
+        [x * 2 for x in range(size)], 0, size * 2, colors="black", linewidth=5, zorder=1
+    )
+    ax.hlines(
+        [y * 2 for y in range(size)], 0, size * 2, colors="black", linewidth=5, zorder=1
+    )
+    ax.set_xticks(
+        [i for i in range(size * 2)],
+        [str((x // 2) + 1) if x % 2 != 0 else "" for x in range(size * 2)],
+    )
+    ax.set_yticks(
+        [i for i in range(size * 2)],
+        [str((x // 2) + 1) if x % 2 != 0 else "" for x in range(size * 2)],
+    )
+    # plot goal sqaure
+    goal = Rectangle(
+        ((size - 1) * 2, (size - 1) * 2),
+        2,
+        2,
+        linewidth=5,
+        edgecolor="green",
+        facecolor="none",
+        zorder=2,
+    )
+    ax.add_patch(goal)
 
     fig = plt.gcf()
     buf = BytesIO()

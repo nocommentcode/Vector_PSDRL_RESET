@@ -24,14 +24,15 @@ class DataManager:
         )
         with open(self.logdir + "hyper_parameters.txt", "w") as f:
             json.dump(config, f, indent=2)
-        wandb.init(
-            project="VectorPSDRLNew",
-            name=f"{config['algorithm']['name']}-{config['experiment']['env']}({config['experiment']['seed']})",
-            config=config,
-            tags=[config["experiment"]["env"], config["algorithm"]["name"]],
-        )
+        # wandb.init(
+        #     project="VectorPSDRLNew",
+        #     name=f"{config['algorithm']['name']}-{config['experiment']['env']}({config['experiment']['seed']})",
+        #     config=config,
+        #     tags=[config["experiment"]["env"], config["algorithm"]["name"]],
+        # )
 
     def update(self, log: dict, timestep: int):
+        return
         wandb.log(
             {
                 key: value
@@ -44,7 +45,8 @@ class DataManager:
             f.write(json.dumps({"Timestep": timestep, **dict(log["scalars"])}) + "\n")
 
     def log_images(self, name: str, images, timestep: int):
-        wandb.log({name: [wandb.Image(image) for image in images]}, timestep)
+        pass
+        # wandb.log({name: [wandb.Image(image) for image in images]}, timestep)
 
     def save(self, agent: "PSDRL", timestep: int):
         path = self.logdir + "checkpoints/" + str(timestep) + "/"
