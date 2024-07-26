@@ -90,6 +90,63 @@ def simulate_trajectory(env: gym.Env, agent: PSDRL, logger, timestep):
     logger.data_manager.log_images("Trajectory", [traj], timestep)
 
 
+FORWARD = 2
+TURN_RIGHT = 1
+
+
+def get_action_to_coords(x, y):
+    curr_x = 1
+    curr_y = 1
+    actions = []
+    while curr_x != x:
+        actions.append(FORWARD)
+        curr_x += 1
+    actions.append(TURN_RIGHT)
+    while curr_y != y:
+        actions.append(FORWARD)
+        curr_y += 1
+    return actions
+
+
+def move_to_coord_and_rotate(env, agent, x, y):
+    obs = env.reset()
+    agent.model.prev_state[:] = torch.zeros(agent.model.transition_network.gru_dim)
+
+    actions = get_action_to_coords(x, y)
+    # move agent to desired square
+    for action in actions:
+        obs = torch.from_numpy(obs).float().to(agent.device)
+        states, rewards, terminals, h = agent.model.predict(
+            obs, agent.model.prev_state, batch=True
+        )
+        agent.model.prev_state = h[action]
+        obs, *_ = env.step(action)
+
+    hiddens = torch.zeros((4, *agent.model.prev_state.shape)).to(agent.device)
+    hiddens[0] = agent.model.prev_state
+    observations = torch.zeros((4, *obs.shape)).to(agent.device)
+    observations[0] = torch.from_numpy(obs).float().to(agent.device)
+
+    # rotate 3 times to get remaining directions
+    for i in range(1, 4):
+        obs = torch.from_numpy(obs).float().to(agent.device)
+        states, rewards, terminals, h = agent.model.predict(
+            obs, agent.model.prev_state, batch=True
+        )
+        agent.model.prev_state = h[TURN_RIGHT]
+        obs, *_ = env.step(TURN_RIGHT)
+        hiddens[i] = h[TURN_RIGHT]
+        observations[i] = torch.from_numpy(obs).float().to(agent.device)
+        print(env.unwrapped.agent_dir)
+
+    return hiddens, observations
+
+
+def get_value_for_obs(obs, hiddens, agent: PSDRL):
+    v = agent.value_network.predict(torch.cat((obs, hiddens), dim=1))
+    return v
+
+
 def get_obs_for(env, x, y, dir):
     env.unwrapped.agent_pos = (x, y)
     env.unwrapped.agent_dir = dir
@@ -105,33 +162,20 @@ def get_obs_for(env, x, y, dir):
     return final_obs
 
 
-def get_value_for_obs(obs, agent: PSDRL):
-    h = torch.zeros(agent.model.transition_network.gru_dim).to(agent.device)
-    obs = torch.from_numpy(obs).float().to(agent.device)
-    v = agent.value_network.predict(torch.cat((obs, h)))
-    return v
-
-
 def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
     values = np.zeros((3 * 2, 3 * 2))
     env.reset()
     plt.close()
     for x in range(1, 4):
         for y in range(1, 4):
-            for dir in range(4):
-                obs = get_obs_for(env, x, y, dir)
-                value = get_value_for_obs(obs, agent)
-                x_coord = (x - 1) * 2
-                y_coord = (y - 1) * 2
-                if dir == 1:
-                    x_coord += 1
-                if dir == 2:
-                    y_coord += 1
-                if dir == 3:
-                    x_coord += 1
-                    y_coord += 1
-
-                values[x_coord, y_coord] = np.tan(value.detach().cpu().numpy())
+            hidden, obs = move_to_coord_and_rotate(env, agent, x, y)
+            v = np.tan(get_value_for_obs(obs, hidden, agent).detach().cpu().numpy())
+            x_c = x * 2
+            y_c = y * 2
+            values[x_c, y_c] = v[0]
+            values[x_c + 1, y_c] = v[1]
+            values[x_c, y_c + 1] = v[2]
+            values[x_c + 1, y_c + 1] = v[3]
 
     ax = sns.heatmap(values, linewidth=0.5, xticklabels=[], yticklabels=[])
     ax.vlines([x * 2 for x in range(5)], 0, 3 * 2, colors="black")
