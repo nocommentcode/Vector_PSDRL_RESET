@@ -11,15 +11,11 @@ from PSDRL.common.data_manager import DataManager
 from PSDRL.common.utils import init_env, load, preprocess_image
 from PSDRL.common.logger import Logger
 from PSDRL.agent import Agent
-from PSDRL.common.plot_deep_sea import (
-    log_deep_shallow_expl,
-    log_shallow_effect,
-    log_trajectories,
-)
+
 from PSDRL.common.plot_minigrid import (
-    plot_value_heatmap,
-    simulate_trajectories,
-    simulate_trajectory,
+    TrajectoryImages,
+    TransitionModelImage,
+    ValueHeatmap,
 )
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -108,9 +104,13 @@ def run_experiment(
         )
 
         if ep % 25 == 0:
-            simulate_trajectory(env, agent, logger, experiment_step)
-            plot_value_heatmap(env, agent, logger, experiment_step)
-            simulate_trajectories(env, agent, logger, experiment_step)
+            image_generators = [
+                TransitionModelImage(env, agent),
+                TrajectoryImages(env, agent),
+                ValueHeatmap(env, agent),
+            ]
+            for generator in image_generators:
+                generator.generate_and_log(logger, experiment_step)
 
         ep += 1
         logger.log_episode(
