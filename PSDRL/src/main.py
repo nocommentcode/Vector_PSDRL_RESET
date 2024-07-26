@@ -6,6 +6,7 @@ import torch
 from ruamel.yaml import YAML
 import gym
 
+
 from PSDRL.common.data_manager import DataManager
 from PSDRL.common.utils import init_env, load, preprocess_image
 from PSDRL.common.logger import Logger
@@ -15,7 +16,7 @@ from PSDRL.common.plot_deep_sea import (
     log_shallow_effect,
     log_trajectories,
 )
-from PSDRL.common.plot_minigrid import simulate_trajectory
+from PSDRL.common.plot_minigrid import plot_value_heatmap, simulate_trajectory
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -104,6 +105,7 @@ def run_experiment(
 
         if ep % 50 == 0:
             simulate_trajectory(env, agent, logger, experiment_step)
+            plot_value_heatmap(env, agent, logger, experiment_step)
 
         ep += 1
         logger.log_episode(

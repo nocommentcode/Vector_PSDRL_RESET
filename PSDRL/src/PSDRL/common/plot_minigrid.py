@@ -88,3 +88,59 @@ def simulate_trajectory(env: gym.Env, agent: PSDRL, logger, timestep):
 
     traj = compile_frames(true_frames, pred_frames)
     logger.data_manager.log_images("Trajectory", [traj], timestep)
+
+
+def get_obs_for(env, x, y, dir):
+    env.unwrapped.agent_pos = (x, y)
+    env.unwrapped.agent_dir = dir
+    obs = env.gen_obs()
+
+    # image = obs["image"] / obs["image"].max()
+    # plt.imshow(image)
+    # plt.show()
+
+    image_obs = obs["image"].flatten()
+    direction = np.array([obs["direction"]])
+    final_obs = np.concatenate((image_obs, direction))
+    return final_obs
+
+
+def get_value_for_obs(obs, agent: PSDRL):
+    h = torch.zeros(agent.model.transition_network.gru_dim).to(agent.device)
+    obs = torch.from_numpy(obs).float().to(agent.device)
+    v = agent.value_network.predict(torch.cat((obs, h)))
+    return v
+
+
+def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
+    values = np.zeros((3 * 2, 3 * 2))
+    env.reset()
+    print(env.unwrapped.agent_pos)
+    for x in range(1, 4):
+        for y in range(1, 4):
+            for dir in range(4):
+                obs = get_obs_for(env, x, y, dir)
+                value = get_value_for_obs(obs, agent)
+                x_coord = (x - 1) * 2
+                y_coord = (y - 1) * 2
+                if dir == 1:
+                    x_coord += 1
+                if dir == 2:
+                    y_coord += 1
+                if dir == 3:
+                    x_coord += 1
+                    y_coord += 1
+
+                values[x_coord, y_coord] = value.detach().cpu().numpy()
+
+    ax = sns.heatmap(values, linewidth=0.5, xticklabels=[], yticklabels=[])
+    ax.vlines([x * 2 for x in range(5)], 0, 3 * 2, colors="black")
+    ax.hlines([y * 2 for y in range(5)], 0, 3 * 2, colors="black")
+
+    fig = plt.gcf()
+    buf = BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    image = Image.open(buf)
+
+    logger.data_manager.log_images("Values", [image], timestep)
