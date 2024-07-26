@@ -14,7 +14,7 @@ from ..common.utils import preprocess_image
 from PIL import Image
 import seaborn as sns
 
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
 
 
 def make_frame(obs, reward, terminal):
@@ -37,21 +37,61 @@ def make_frame(obs, reward, terminal):
     return Image.open(buf)
 
 
-def compile_frames(true_frames, pred_frames):
+def make_traj_frame(coords):
+    plt.close()
+    x_coords = [x for x, _ in coords]
+    y_coords = [y for _, y in coords]
+
+    plt.plot(x_coords, y_coords, color=("green" if coords[-1] == (3, 3) else "blue"))
+    plt.grid()
+    plt.xlim(0, 4)
+    plt.ylim(0, 4)
+
+    ax = plt.gca()
+
+    start_circle = Circle((1, 1), radius=0.3, color="b")
+    ax.add_patch(start_circle)
+
+    end_circle = Circle((3, 3), radius=0.3, color="g")
+    ax.add_patch(end_circle)
+
+    # save figure to PIL image
+    fig = plt.gcf()
+    # fig.set_size_inches((12, 5))
+    buf = BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Image.open(buf)
+
+
+def compile_frames(pred_frames, true_frames=None):
     padding = 10
     # Calculate the total width and height for the output image
-    total_width = sum(image.width for image in true_frames) + padding * (
-        len(true_frames) - 1
+    total_width = sum(image.width for image in pred_frames) + padding * (
+        len(pred_frames) - 1
     )
-    max_height = max(image.height for image in true_frames)
+    max_height = max(image.height for image in pred_frames)
 
     # Create a new blank image with the calculated dimensions
-    new_image = Image.new("RGB", (total_width, max_height * 2 + padding))
+    new_image = Image.new(
+        "RGB",
+        (
+            total_width,
+            max_height * 2 + padding if true_frames is not None else max_height,
+        ),
+    )
 
     # Paste each image into the new image at the correct position
     x_offset = 0
-    for true, pred in zip(true_frames, pred_frames):
+    for pred in pred_frames:
         new_image.paste(pred, (x_offset, 0))
+        x_offset += pred.width + padding
+
+    if true_frames is None:
+        return new_image
+
+    x_offset = 0
+    for true in true_frames:
         new_image.paste(true, (x_offset, max_height + padding))
         x_offset += true.width + padding
 
@@ -86,11 +126,29 @@ def simulate_trajectory(env: gym.Env, agent: PSDRL, logger, timestep):
         if terminal:
             break
 
-    traj = compile_frames(true_frames, pred_frames)
+    traj = compile_frames(pred_frames, true_frames)
     logger.data_manager.log_images("Trajectory", [traj], timestep)
 
 
+def simulate_trajectories(env: gym.Env, agent: PSDRL, logger, timestep, n=10):
+    trajs = []
+    for i in range(n):
+        obs = env.reset()
+        coords = []
+        for t in range(100):
+            a = agent.select_action(obs, t)
+            obs, rew, terminal, *_ = env.step(a)
+            coords.append(env.unwrapped.agent_pos)
+            if terminal:
+                break
+        trajs.append(make_traj_frame(coords))
+
+    image = compile_frames(trajs)
+    logger.data_manager.log_images("Trajectories", [image], timestep)
+
+
 FORWARD = 2
+
 TURN_RIGHT = 1
 
 
