@@ -170,8 +170,8 @@ def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
         for y in range(1, 4):
             hidden, obs = move_to_coord_and_rotate(env, agent, x, y)
             v = np.tan(get_value_for_obs(obs, hidden, agent).detach().cpu().numpy())
-            x_c = x * 2
-            y_c = y * 2
+            x_c = (x - 1) * 2
+            y_c = (y - 1) * 2
             values[x_c, y_c] = v[0]
             values[x_c + 1, y_c] = v[1]
             values[x_c, y_c + 1] = v[2]
