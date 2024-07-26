@@ -103,7 +103,7 @@ def run_experiment(
             f"Episode {ep}, Timestep {experiment_step}, Train Reward {episode_reward}"
         )
 
-        if ep % 50 == 0:
+        if ep % 25 == 0:
             simulate_trajectory(env, agent, logger, experiment_step)
             plot_value_heatmap(env, agent, logger, experiment_step)
 
