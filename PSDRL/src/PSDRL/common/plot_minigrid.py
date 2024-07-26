@@ -115,7 +115,7 @@ def get_value_for_obs(obs, agent: PSDRL):
 def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
     values = np.zeros((3 * 2, 3 * 2))
     env.reset()
-    print(env.unwrapped.agent_pos)
+    plt.close()
     for x in range(1, 4):
         for y in range(1, 4):
             for dir in range(4):
@@ -131,7 +131,7 @@ def plot_value_heatmap(env: gym.Env, agent: PSDRL, logger, timestep):
                     x_coord += 1
                     y_coord += 1
 
-                values[x_coord, y_coord] = value.detach().cpu().numpy()
+                values[x_coord, y_coord] = np.tan(value.detach().cpu().numpy())
 
     ax = sns.heatmap(values, linewidth=0.5, xticklabels=[], yticklabels=[])
     ax.vlines([x * 2 for x in range(5)], 0, 3 * 2, colors="black")
