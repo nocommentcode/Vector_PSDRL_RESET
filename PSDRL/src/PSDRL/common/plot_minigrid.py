@@ -137,7 +137,6 @@ def move_to_coord_and_rotate(env, agent, x, y):
         obs, *_ = env.step(TURN_RIGHT)
         hiddens[i] = h[TURN_RIGHT]
         observations[i] = torch.from_numpy(obs).float().to(agent.device)
-        print(env.unwrapped.agent_dir)
 
     return hiddens, observations
 
